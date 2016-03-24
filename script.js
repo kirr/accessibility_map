@@ -1,4 +1,18 @@
 ymaps.ready(function () {
+  // TODO(kirr): Vanile constants
+  GREEN = '2bb52b80'
+  ORANGE = 'ffa50080'
+  RED = 'ff240080'
+  DARK_RED = '8b000080'
+
+  //LAT_OFFSET = 0.005
+  //LONG_OFFSET = 0.0075
+
+  LAT_OFFSET = 0.01
+  LONG_OFFSET = 0.015
+
+  CITY_TL = [55.942765, 37.285086]
+  CITY_BR = [55.572470, 37.904602]
 
   // Yandex Office
   var sourceCoords = [55.733, 37.587];
@@ -32,14 +46,22 @@ ymaps.ready(function () {
   masstransitRouteItem = routeTypeSelector.get(1)
   myMap.controls.add(routeTypeSelector)
 
-  sourcePoint = new ymaps.Placemark(sourceCoords, {}, { preset: 'islands#redCircleDotIcon' });
-  myMap.geoObjects.add(sourcePoint);
-
   //autoRouteItem.events.add('click', function (e) { updateAccessibilityMap('auto', e.get('target')); });
   //masstransitRouteItem.events.add('click', function (e) { updateAccessibilityMap('masstransit', e.get('target')); });
 
   myMap.events.add('click', onMapClick);
   searchControl.events.add('resultshow', onSearchShow);
+
+  function colorForDuration(durationSec) {
+    var d = durationSec / 60;
+    if (d < 15)
+      return GREEN;
+    else if (d < 30)
+      return ORANGE;
+    else if (d < 45)
+      return RED;
+    return DARK_RED;
+  }
 
   function onMapClick(e) {
     sourceCoords = e.get('coords');
@@ -55,21 +77,44 @@ ymaps.ready(function () {
   }
 
   function updateAccessibilityMap() {
-    var targetCoords = [55.8505, 37.419479];
-    ymaps.route(
-      [sourceCoords, targetCoords],
-      {routingMode: 'auto'}).done(function(route) {
-        var duration = route.getTime() / 60;
-        console.log(duration);
-        var zoneRect = new ymaps.Rectangle(
-            [[targetCoords[0] - 0.01, targetCoords[1] - 0.01],
-             [targetCoords[0] + 0.01, targetCoords[1] + 0.01]],
-            {},
-            {fillColor:'0066ff99'});
-            myMap.geoObjects.add(zoneRect);
-      }, function(err) {
-        throw err;
-      }, this);
+    clearMap();
+
+    // TODO(kirr) max, min
+    for (var lat = CITY_BR[0]; lat < CITY_TL[0]; lat = lat + 2*LAT_OFFSET) {
+      for (var long = CITY_TL[1]; long < CITY_BR[1]; long = long + 2*LONG_OFFSET) {
+        var targetCoords = [lat, long];
+        console.log(targetCoords);
+        ymaps.route(
+          [sourceCoords, targetCoords],
+          {routingMode: 'auto'}).done(
+              addZone.bind(null, targetCoords),
+              function(err) {
+                throw err;
+              }, this);
+      }
+    }
+  }
+
+  function addZone(targetCoords, route) {
+    console.log(targetCoords);
+    var zoneRect = new ymaps.Rectangle(
+        [[targetCoords[0] - LAT_OFFSET, targetCoords[1] - LONG_OFFSET],
+         [targetCoords[0] + LAT_OFFSET, targetCoords[1] + LONG_OFFSET]],
+        {},
+        {
+          fillColor:colorForDuration(route.getTime()),
+          strokeWidth:0,
+          openBalloonOnClick:false
+        });
+    //zoneRect.events.add('click', onMapClick);
+    myMap.geoObjects.add(zoneRect);
+  }
+
+  function clearMap() {
+    myMap.geoObjects.removeAll();
+    sourcePoint = new ymaps.Placemark(sourceCoords, {}, { preset: 'islands#redCircleDotIcon' });
+    myMap.geoObjects.add(sourcePoint);
+
   }
 
   updateAccessibilityMap();
