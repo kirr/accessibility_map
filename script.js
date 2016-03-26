@@ -4,6 +4,7 @@ ymaps.ready(function () {
   ORANGE = 'ffa50080'
   RED = 'ff240080'
   DARK_RED = '8b000080'
+  BLACK = '00000080'
 
   //LAT_OFFSET = 0.005
   //LONG_OFFSET = 0.0075
@@ -11,12 +12,14 @@ ymaps.ready(function () {
   LAT_OFFSET = 0.01
   LONG_OFFSET = 0.015
 
-  CITY_TL = [55.942765, 37.285086]
-  CITY_BR = [55.572470, 37.904602]
+  CITY_TL = [55.916260, 37.320640]
+  CITY_BR = [55.566246, 37.904602]
 
   // Yandex Office
   var sourceCoords = [55.733, 37.587];
   var routingMode = 'auto'
+  var currentProgress = 0
+  var currentProgressLimit = 0
 
   myMap = new ymaps.Map('map', {
     center: sourceCoords,
@@ -62,8 +65,11 @@ ymaps.ready(function () {
     routeTypeSelector.collapse();
   }
 
-  function colorForDuration(durationSec) {
-    var d = durationSec / 60;
+  function colorForRoute(route) {
+    if (!route)
+      return BLACK;
+
+    var d = route.properties.get('duration').value / 60;
     if (d < 15)
       return GREEN;
     else if (d < 30)
@@ -89,40 +95,63 @@ ymaps.ready(function () {
   function updateAccessibilityMap() {
     clearMap();
 
+    currentProgress = 0;
+    requestRoutes(0);
+  }
+
+  function requestRoutes(progress) {
     // TODO(kirr) max, min
-    // TODO(kirr) sequential loading
-    for (var lat = CITY_BR[0]; lat < CITY_TL[0]; lat = lat + 2*LAT_OFFSET) {
-      for (var long = CITY_TL[1]; long < CITY_BR[1]; long = long + 2*LONG_OFFSET) {
-        var targetCoords = [lat, long];
-        ymaps.route(
-          [sourceCoords, targetCoords],
-          {
-            routingMode: routingMode,
-            avoidTrafficJams: true,
-            multiRoute:true
-          }).done(
-              addZone.bind(null, targetCoords),
-              function(err) {
-                throw err;
-              }, this);
-      }
+    var lat_count = (CITY_TL[0] - CITY_BR[0]) / (2*LAT_OFFSET);
+    var long_count = (CITY_BR[1] - CITY_TL[1]) / (2*LONG_OFFSET);
+    currentProgressLimit = Math.min(progress + 10, lat_count * long_count);
+    for (var k=progress; k<currentProgressLimit; ++k) {
+      var i = Math.floor(k / lat_count);
+      var j = k % lat_count;
+      var lat = CITY_BR[0] + i*(2*LAT_OFFSET);
+      var long = CITY_TL[1] + j*(2*LONG_OFFSET);
+      makeRequest([lat, long], 0);
     }
   }
 
-  function addZone(targetCoords, route) {
-    var activeRoute = route.getActiveRoute();
+  function makeRequest(targetCoords, errCount) {
+    ymaps.route(
+      [sourceCoords, targetCoords],
+      {
+        routingMode: routingMode,
+        avoidTrafficJams: true,
+        multiRoute:true
+      }).done(
+          onRequestComplete.bind(null, targetCoords),
+          onRequestErr.bind(null, targetCoords, errCount),
+          this);
+  }
+
+  function onRequestComplete(targetCoords, route) {
     var zoneRect = new ymaps.Rectangle(
         [[targetCoords[0] - LAT_OFFSET, targetCoords[1] - LONG_OFFSET],
          [targetCoords[0] + LAT_OFFSET, targetCoords[1] + LONG_OFFSET]],
         {},
         {
-          fillColor:
-            colorForDuration(activeRoute.properties.get('duration').value),
-          strokeWidth:0,
-          openBalloonOnClick:false
+          fillColor: colorForRoute(route.getActiveRoute()),
+          strokeWidth: 0,
+          openBalloonOnClick: false
         });
     zoneRect.events.add('click', onMapClick);
     myMap.geoObjects.add(zoneRect);
+
+    currentProgress = currentProgress + 1;
+    if (currentProgress == currentProgressLimit)
+      requestRoutes(currentProgress);
+  }
+
+  function onRequestErr(targetCoords, errCount, err) {
+    if (errCount > 3) {
+      currentProgress = currentProgress + 1;
+      if (currentProgress == currentProgressLimit)
+        requestRoutes(currentProgress);
+      return;
+    }
+    makeRequest(targetCoords, errCount + 1);
   }
 
   function clearMap() {
