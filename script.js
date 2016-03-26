@@ -16,6 +16,7 @@ ymaps.ready(function () {
 
   // Yandex Office
   var sourceCoords = [55.733, 37.587];
+  var routingMode = 'auto'
 
   myMap = new ymaps.Map('map', {
     center: sourceCoords,
@@ -46,11 +47,20 @@ ymaps.ready(function () {
   masstransitRouteItem = routeTypeSelector.get(1)
   myMap.controls.add(routeTypeSelector)
 
-  //autoRouteItem.events.add('click', function (e) { updateAccessibilityMap('auto', e.get('target')); });
-  //masstransitRouteItem.events.add('click', function (e) { updateAccessibilityMap('masstransit', e.get('target')); });
+  autoRouteItem.events.add('click', onChangeRoutingMode.bind(null, 'auto'));
+  masstransitRouteItem.events.add('click',
+      onChangeRoutingMode.bind(null, 'masstransit'));
 
   myMap.events.add('click', onMapClick);
   searchControl.events.add('resultshow', onSearchShow);
+
+  function onChangeRoutingMode(newRoutingMode) {
+    if (newRoutingMode != routingMode) {
+      routingMode = newRoutingMode;
+      updateAccessibilityMap();
+    }
+    routeTypeSelector.collapse();
+  }
 
   function colorForDuration(durationSec) {
     var d = durationSec / 60;
@@ -80,13 +90,17 @@ ymaps.ready(function () {
     clearMap();
 
     // TODO(kirr) max, min
+    // TODO(kirr) sequential loading
     for (var lat = CITY_BR[0]; lat < CITY_TL[0]; lat = lat + 2*LAT_OFFSET) {
       for (var long = CITY_TL[1]; long < CITY_BR[1]; long = long + 2*LONG_OFFSET) {
         var targetCoords = [lat, long];
-        console.log(targetCoords);
         ymaps.route(
           [sourceCoords, targetCoords],
-          {routingMode: 'auto'}).done(
+          {
+            routingMode: routingMode,
+            avoidTrafficJams: true,
+            multiRoute:true
+          }).done(
               addZone.bind(null, targetCoords),
               function(err) {
                 throw err;
@@ -96,13 +110,14 @@ ymaps.ready(function () {
   }
 
   function addZone(targetCoords, route) {
-    console.log(targetCoords);
+    var activeRoute = route.getActiveRoute();
     var zoneRect = new ymaps.Rectangle(
         [[targetCoords[0] - LAT_OFFSET, targetCoords[1] - LONG_OFFSET],
          [targetCoords[0] + LAT_OFFSET, targetCoords[1] + LONG_OFFSET]],
         {},
         {
-          fillColor:colorForDuration(route.getTime()),
+          fillColor:
+            colorForDuration(activeRoute.properties.get('duration').value),
           strokeWidth:0,
           openBalloonOnClick:false
         });
