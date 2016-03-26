@@ -121,13 +121,14 @@ ymaps.ready(function () {
           strokeWidth:0,
           openBalloonOnClick:false
         });
-    //zoneRect.events.add('click', onMapClick);
+    zoneRect.events.add('click', onMapClick);
     myMap.geoObjects.add(zoneRect);
   }
 
   function clearMap() {
     myMap.geoObjects.removeAll();
-    sourcePoint = new ymaps.Placemark(sourceCoords, {}, { preset: 'islands#redCircleDotIcon' });
+    sourcePoint = new ymaps.Placemark(sourceCoords, {},
+        { preset: 'islands#greenCircleDotIcon' });
     myMap.geoObjects.add(sourcePoint);
 
   }
