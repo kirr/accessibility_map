@@ -6,14 +6,17 @@ ymaps.ready(function () {
   DARK_RED = '8b000080'
   BLACK = '00000080'
 
-  //LAT_OFFSET = 0.005
-  //LONG_OFFSET = 0.0075
+  //LAT_OFFSET = 0.0035
+  //LONG_OFFSET = 0.005
 
-  LAT_OFFSET = 0.01
-  LONG_OFFSET = 0.015
+  LAT_OFFSET = 0.005
+  LONG_OFFSET = 0.0075
+
+  //LAT_OFFSET = 0.02
+  //LONG_OFFSET = 0.03
 
   CITY_TL = [55.916260, 37.320640]
-  CITY_BR = [55.566246, 37.904602]
+  CITY_BR = [55.566246, 37.914602]
 
   // Yandex Office
   var sourceCoords = [55.733, 37.587];
@@ -81,14 +84,11 @@ ymaps.ready(function () {
 
   function onMapClick(e) {
     sourceCoords = e.get('coords');
-    sourcePoint.geometry.setCoordinates(sourceCoords);
     searchControl.hideResult();
     updateAccessibilityMap();
   }
 
   function onSearchShow(e) {
-    clearSourcePoint(true);
-    sourcePoint = searchControl.getResultsArray()[e.get('index')];
     updateAccessibilityMap();
   }
 
@@ -105,8 +105,8 @@ ymaps.ready(function () {
     var long_count = (CITY_BR[1] - CITY_TL[1]) / (2*LONG_OFFSET);
     currentProgressLimit = Math.min(progress + 10, lat_count * long_count);
     for (var k=progress; k<currentProgressLimit; ++k) {
-      var i = Math.floor(k / lat_count);
-      var j = k % lat_count;
+      var i = Math.floor(k / long_count);
+      var j = k % long_count;
       var lat = CITY_BR[0] + i*(2*LAT_OFFSET);
       var long = CITY_TL[1] + j*(2*LONG_OFFSET);
       makeRequest([lat, long], 0);
