@@ -1,7 +1,8 @@
-import urllib2
-import sys
-import xml.etree.ElementTree as ET
 import StringIO
+import struct
+import sys
+import urllib2
+import xml.etree.ElementTree as ET
 
 #//LAT_OFFSET = 0.005
 #//LONG_OFFSET = 0.0075
@@ -31,6 +32,7 @@ if not len(sys.argv) == 2:
 routes = []
 sourceId = int(sys.argv[1])
 sourceCoords = QuadCoordsById(sourceId)
+ok = True
 for i in range(0, QUADS_COUNT):
     targetCoords = QuadCoordsById(i)
     req_str = '{url}?rll={long1},{lat1}~{long2},{lat2}&mode=jams'.format(
@@ -45,9 +47,16 @@ for i in range(0, QUADS_COUNT):
         xml_res = StringIO.StringIO(response.read())
         for event, elem in ET.iterparse(xml_res, events=("start", "end")):
             if "jamsTime" in elem.tag:
-                routes.append([i, float(elem.text)]);
+                routes.append([i, int(float(elem.text))])
                 break
     except urllib2.HTTPError as e:
         print req_str, e.code
+        ok = False
+        break
 
-print routes
+if ok:
+    print routes
+    with open(str(sourceId) + '_route.bin', 'wb') as f:
+        for data in routes:
+            f.write(struct.pack('2I', data[0], data[1]))
+        f.close();

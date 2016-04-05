@@ -7,10 +7,10 @@
 LAT_OFFSET = 0.02
 LONG_OFFSET = 0.03
 
-// TODO(kirr) max, min
 CITY_TL = [55.916260, 37.320640]
 CITY_BR = [55.566246, 37.914602]
 
+// TODO(kirr) max, min
 LAT_COUNT = Math.floor((CITY_TL[0] - CITY_BR[0]) / (2*LAT_OFFSET));
 LONG_COUNT = Math.floor((CITY_BR[1] - CITY_TL[1]) / (2*LONG_OFFSET));
 QUADS_COUNT = LAT_COUNT * LONG_COUNT;
