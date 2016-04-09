@@ -1,40 +1,46 @@
 import StringIO
+import json
+import os
 import struct
 import sys
 import urllib2
 import xml.etree.ElementTree as ET
 
-#//LAT_OFFSET = 0.005
-#//LONG_OFFSET = 0.0075
-
-LAT_OFFSET = 0.04
-LONG_OFFSET = 0.06
-
-CITY_TL = [55.916260, 37.320640]
-CITY_BR = [55.566246, 37.914602]
-
-# TODO(kirr): max, min
-LAT_COUNT = (CITY_TL[0] - CITY_BR[0]) // LAT_OFFSET
-LONG_COUNT = (CITY_BR[1] - CITY_TL[1]) // LONG_OFFSET
-QUADS_COUNT = int(LAT_COUNT * LONG_COUNT)
 
 def QuadCoordsById(quad_id):
-    i = quad_id // LONG_COUNT
-    j = quad_id % LONG_COUNT
-    lat = CITY_BR[0] + i*LAT_OFFSET + 0.5*LAT_OFFSET
-    long = CITY_TL[1] + j*LONG_OFFSET + 0.5*LONG_OFFSET
+    i = quad_id // long_count
+    j = quad_id % long_count
+    lat = city_br[0] + i*lat_offset + 0.5*lat_offset
+    long = city_tl[1] + j*long_offset + 0.5*long_offset
     return [lat, long]
+
 
 if not len(sys.argv) == 2:
     print 'Using undexer.py start_index'
     sys.exit(1)
 
 routes = []
+configPath = './config.json'
+ok = True
+
+with open(configPath) as jsonFile:
+    configData = json.load(jsonFile)
+    config = configData['configs'][configData['current']]
+
+lat_offset = config['lat_offset']
+long_offset = config['long_offset']
+
+city_tl = [config['area'][0], config['area'][1]]
+city_br = [config['area'][2], config['area'][3]]
+
+#TODO(kirr) : max, min
+lat_count = (city_tl[0] - city_br[0]) // lat_offset
+long_count = (city_br[1] - city_tl[1]) // long_offset
+quads_count = int(lat_count * long_count)
+
 sourceId = int(sys.argv[1])
 sourceCoords = QuadCoordsById(sourceId)
-outDir = 'routes/'
-ok = True
-for i in range(0, QUADS_COUNT):
+for i in range(0, quads_count):
     if i == sourceId:
         routes.append([i, 1]) # 1 second
         continue
@@ -60,7 +66,10 @@ for i in range(0, QUADS_COUNT):
         break
 
 if ok:
-    filePath = outDir + str(sourceId) + '_route.bin'
+    outDir = './routes/' + configData['current']
+    if not os.path.exists(outDir):
+        os.makedirs(outDir)
+    filePath = '{0}/{1}_route.bin'.format(outDir, sourceId)
     print 'finsihed {0}, {1} routes'.format(filePath, len(routes))
     with open(filePath, 'wb') as f:
         for data in routes:
