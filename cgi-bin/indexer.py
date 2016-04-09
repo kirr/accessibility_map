@@ -7,22 +7,22 @@ import xml.etree.ElementTree as ET
 #//LAT_OFFSET = 0.005
 #//LONG_OFFSET = 0.0075
 
-LAT_OFFSET = 0.02
-LONG_OFFSET = 0.03
+LAT_OFFSET = 0.04
+LONG_OFFSET = 0.06
 
 CITY_TL = [55.916260, 37.320640]
 CITY_BR = [55.566246, 37.914602]
 
 # TODO(kirr): max, min
-LAT_COUNT = (CITY_TL[0] - CITY_BR[0]) // (2*LAT_OFFSET)
-LONG_COUNT = (CITY_BR[1] - CITY_TL[1]) // (2*LONG_OFFSET)
+LAT_COUNT = (CITY_TL[0] - CITY_BR[0]) // LAT_OFFSET
+LONG_COUNT = (CITY_BR[1] - CITY_TL[1]) // LONG_OFFSET
 QUADS_COUNT = int(LAT_COUNT * LONG_COUNT)
 
 def QuadCoordsById(quad_id):
     i = quad_id // LONG_COUNT
     j = quad_id % LONG_COUNT
-    lat = CITY_BR[0] + i*(2*LAT_OFFSET)
-    long = CITY_TL[1] + j*(2*LONG_OFFSET)
+    lat = CITY_BR[0] + i*LAT_OFFSET + 0.5*LAT_OFFSET
+    long = CITY_TL[1] + j*LONG_OFFSET + 0.5*LONG_OFFSET
     return [lat, long]
 
 if not len(sys.argv) == 2:
@@ -32,8 +32,13 @@ if not len(sys.argv) == 2:
 routes = []
 sourceId = int(sys.argv[1])
 sourceCoords = QuadCoordsById(sourceId)
+outDir = 'routes/'
 ok = True
 for i in range(0, QUADS_COUNT):
+    if i == sourceId:
+        routes.append([i, 1]) # 1 second
+        continue
+
     targetCoords = QuadCoordsById(i)
     req_str = '{url}?rll={long1},{lat1}~{long2},{lat2}&mode=jams'.format(
             url = 'http://route-net.int01e.tst.maps.yandex.ru/1.x/',
@@ -55,8 +60,9 @@ for i in range(0, QUADS_COUNT):
         break
 
 if ok:
-    print routes
-    with open(str(sourceId) + '_route.bin', 'wb') as f:
+    filePath = outDir + str(sourceId) + '_route.bin'
+    print 'finsihed {0}, {1} routes'.format(filePath, len(routes))
+    with open(filePath, 'wb') as f:
         for data in routes:
             f.write(struct.pack('2I', data[0], data[1]))
         f.close();
