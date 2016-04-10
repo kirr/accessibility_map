@@ -105,8 +105,8 @@ function RequestRoutes(sourceId) {
       var arrayBuffer = req.response; // Note: not req.responseText
       if (arrayBuffer) {
         var byteArray = new Uint32Array(arrayBuffer);
-        for (var i = 0; i < byteArray.length; i = i + 2) {
-          OnRequestComplete(byteArray[i], byteArray[i+1]);
+        for (var i = 0; i < byteArray.length; ++i) {
+          OnRequestComplete(i, byteArray[i]);
         }
       }
     }

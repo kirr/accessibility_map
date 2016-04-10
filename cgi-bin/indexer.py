@@ -1,5 +1,6 @@
 import StringIO
 import json
+import logging
 import os
 import struct
 import sys
@@ -33,6 +34,7 @@ def MoveForDirection(coords, direction):
     return [coords[0] + lat_step, coords[1] + long_step]
 
 def MakeDurationReuest(quad_id, repeat_count=0, direction=0):
+    # TODO(kirr): get coords from parameter
     targetCoords = QuadCoordsById(quad_id)
     targetCoords = MoveForDirection(targetCoords, direction)
     req_str = '{url}?rll={long1},{lat1}~{long2},{lat2}&mode=jams'.format(
@@ -48,23 +50,25 @@ def MakeDurationReuest(quad_id, repeat_count=0, direction=0):
         xml_res = StringIO.StringIO(responseText)
         for event, elem in ET.iterparse(xml_res, events=("start", "end")):
             if "jamsTime" in elem.tag:
-                print '{0}: ok {1}'.format(quad_id, elem.text)
+                logging.debug('%d: ok %s', quad_id, elem.text)
                 return int(float(elem.text))
         # TODO(kirr): Check for directions
         if repeat_count < 5:
             return MakeDurationReuest(quad_id, repeat_count + 1, direction + 1)
-        print 'No duration info finded for ' + str(quad_id)
+        logging.warning('No duration info finded for %d', quad_id)
         return REQ_ERR_RESPONSE
     except urllib2.HTTPError as e:
         if repeat_count < 3:
-            print 'HTTP error while getting {0}. {1}: {2}'.format(
+            logging.warning('HTTP error while getting %d. %s: %d',
                     quad_id, req_str, e.code)
             return MakeReuest(quad_id, repeat_count + 1, direction)
         return REQ_ERR_HTTP
 
-if not len(sys.argv) == 2:
-    print 'Using undexer.py start_index'
+if len(sys.argv) < 2:
+    print 'Using indexer.py start_index'
     sys.exit(1)
+
+logging.basicConfig(level=logging.INFO)
 
 configPath = './config.json'
 with open(configPath) as jsonFile:
@@ -88,12 +92,12 @@ routes = []
 ok = True
 for i in range(0, quads_count):
     if i == sourceId:
-        routes.append([i, 1]) # 1 second
+        routes.append(1) # 1 second
         continue
 
     duration = MakeDurationReuest(i)
     ok = ok & (not IsError(duration))
-    routes.append([i, duration])
+    routes.append(duration)
 
 outDir = os.path.join('routes', configData['current'])
 if not ok:
@@ -102,8 +106,8 @@ if not ok:
 if not os.path.exists(outDir):
     os.makedirs(outDir)
 filePath = os.path.join(outDir, str(sourceId) + '_route.bin')
-print 'finsihed {0}, {1} routes'.format(filePath, len(routes))
+logging.info('finsihed %s, %d routes', filePath, len(routes))
 with open(filePath, 'wb') as f:
-    for data in routes:
-        f.write(struct.pack('2I', data[0], data[1]))
+    for duration in routes:
+        f.write(struct.pack('I', duration))
     f.close();
