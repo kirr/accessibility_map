@@ -67,8 +67,8 @@ def MakeDurationReuest(source_coords, target_coords, repeat_count=0, direction=0
             logging.warning('HTTP error while getting %d->%d. %s: %d',
                     QuadIdByCoords(source_coords),
                     QuadIdByCoords(target_coords), req_str, e.code)
-            return MakeReuest(source_coords, target_coords,
-                              repeat_count + 1, direction)
+            return MakeDurationReuest(source_coords, target_coords,
+                       repeat_count + 1, direction)
         return REQ_ERR_HTTP
 
 def Init(params):
