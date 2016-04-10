@@ -5,6 +5,8 @@ RED = 'ff240080'
 DARK_RED = '8b000080'
 BLACK = '00000080'
 
+ROUTE_ERR_START = 100000000
+
 var sourceCoords = [55.733, 37.587];
 var routingMode = 'auto'
 var myMap = null
@@ -71,7 +73,7 @@ function QuadIdByCoords(coords) {
 }
 
 function ColorForDuration(time) {
-  if (!time)
+  if (!time || time >= ROUTE_ERR_START)
     return BLACK;
 
   var d = time / 60;
@@ -95,7 +97,6 @@ function RequestRoutes(sourceId) {
   req.open("GET", routeFilePath, true);
   req.setRequestHeader('Cache-Control', 'no-cache');
   req.responseType = "arraybuffer";
-  console.log('request for ' + routeFilePath);
 
   req.onload = function (oEvent) {
     if (req.status != 200) {
