@@ -36,12 +36,7 @@ def MoveForDirection(coords, direction):
 
 def MakeDurationReuest(source_coords, target_coords, repeat_count=0, direction=0):
     target_coords = MoveForDirection(target_coords, direction)
-    req_str = '{url}?rll={long1},{lat1}~{long2},{lat2}&mode=jams'.format(
-            url = 'http://route-net.int01e.tst.maps.yandex.ru/1.x/',
-            long1=source_coords[1],
-            lat1 = source_coords[0],
-            long2 = target_coords[1],
-            lat2 = target_coords[0])
+    req_str = get_reuest_url_func(source_coords, target_coords)
     req = urllib2.Request(req_str)
     try:
         response = urllib2.urlopen(req)
@@ -49,7 +44,8 @@ def MakeDurationReuest(source_coords, target_coords, repeat_count=0, direction=0
         responseText = response.read()
         xml_res = StringIO.StringIO(responseText)
         for event, elem in ET.iterparse(xml_res, events=("start", "end")):
-            if "jamsTime" in elem.tag:
+            # TODO(kirr): separate "jamsTime" and "time" by route type.
+            if "jamsTime" in elem.tag or "time" in elem.tag:
                 logging.debug('%d->%d: ok %s',
                     QuadIdByCoords(source_coords),
                     QuadIdByCoords(target_coords),
@@ -59,8 +55,7 @@ def MakeDurationReuest(source_coords, target_coords, repeat_count=0, direction=0
         if repeat_count < 5:
             return MakeDurationReuest(source_coords, target_coords,
                                       repeat_count + 1, direction + 1)
-        logging.warning('No duration info finded for %d->%d',
-                QuadIdByCoords(source_coords), QuadIdByCoords(target_coords))
+        logging.warning('No duration info finded for %s', req_str)
         return REQ_ERR_RESPONSE
     except urllib2.HTTPError as e:
         if repeat_count < 3:
@@ -79,12 +74,14 @@ def Init(params):
     global lat_count
     global long_count
     global quads_count
+    global get_reuest_url_func
     global _is_init
 
     lat_offset = params.lat_offset
     long_offset = params.long_offset
     city_tl = params.city_tl
     city_br = params.city_br
+    get_reuest_url_func = params.get_reuest_url_func
 
     # TODO(kirr) : max, min
     lat_count = (city_tl[0] - city_br[0]) // lat_offset

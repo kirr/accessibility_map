@@ -92,7 +92,8 @@ function UpdateAccessibilityMap() {
 }
 
 function RequestRoutes(sourceId) {
-  var routeFilePath = FILE_DIR + '/' + sourceId + '_route.bin';
+  var routeFilePath =
+      FILE_DIR + '/' + routingMode + '/' + sourceId + '_route.bin';
   var req = new XMLHttpRequest();
   req.open("GET", routeFilePath, true);
   req.setRequestHeader('Cache-Control', 'no-cache');
