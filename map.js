@@ -12,6 +12,7 @@ var routingMode = 'auto'
 var myMap = null
 var sourcePoint = null;
 var routeTypeSelector = null;
+var heatmap = null
 
 function LoadConfig(configData) {
   var config = configData.configs[configData.current];
@@ -107,14 +108,51 @@ function RequestRoutes(sourceId) {
       var arrayBuffer = req.response; // Note: not req.responseText
       if (arrayBuffer) {
         var byteArray = new Uint32Array(arrayBuffer);
-        for (var i = 0; i < byteArray.length; ++i) {
-          OnRequestComplete(i, byteArray[i]);
-        }
+        RebuildHeatmap(byteArray);
+        //for (var i = 0; i < byteArray.length; ++i) {
+          //OnRequestComplete(i, byteArray[i]);
+        //}
       }
     }
   };
 
   req.send(null);
+}
+
+function RebuildHeatmap(weights) {
+  if (!heatmap) {
+    ymaps.modules.require(['Heatmap'], function (Heatmap) {
+       heatmap = new Heatmap([CITY_TL, CITY_BR],
+                             {radius:30, dissipating:true, intensityOfMidpoint:0.2, opacity: 0.9});
+       heatmap.setMap(myMap);
+       RebuildHeatmap(weights);
+    });
+    return;
+  }
+
+  var features = []
+  for (var i = 0; i < weights.length; ++i) {
+    var weight = Math.min(weights[i]/60, 90);
+    var targetCoords = QuadCoordsById(i);
+    var feature ={
+          id: 'id_' + i,
+          type: 'Feature',
+          geometry: {
+              type: 'Point',
+              coordinates: targetCoords
+          },
+          properties: {
+              weight: weight
+          }
+    };
+    features.push(feature);
+  }
+
+  var data = {
+    type: 'FeatureCollection',
+    features: features
+  };
+  heatmap.setData(data);
 }
 
 function OnRequestComplete(targetId, time) {
