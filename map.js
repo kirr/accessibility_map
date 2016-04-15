@@ -55,6 +55,7 @@ function LoadJSON() {
     }
   };
   xhr.open("GET", 'config.json', true);
+  xhr.setRequestHeader('Cache-Control', 'no-cache');
   xhr.send();
 }
 
