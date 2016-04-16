@@ -2,16 +2,17 @@ import getopt
 import indexer
 import json
 import logging
-from collections import  namedtuple
+from collections import namedtuple
 import os
 import struct
 import sys
 
-configPath = './config.json'
-routeMode = 'auto'
-currentConfig = None
+config_path = './config.json'
+route_mode = 'auto'
+current_config = None
 
-def PrintMan():
+
+def print_man():
     print """run.py start_index end_index\n
     Options:\n
     -c, --config set config file \n
@@ -20,88 +21,94 @@ def PrintMan():
     -h, --help prints this message"""
 
 
-def LoadConfig():
-    configData = {}
-    with open(configPath) as jsonFile:
-        configData = json.load(jsonFile)
+def load_config():
+    config_data = {}
+    with open(config_path) as json_file:
+        config_data = json.load(json_file)
 
-    global currentConfigName
-    currentConfigName = configData['current']
-    config = configData['configs'][currentConfigName]
+    global current_config_name
+    current_config_name = config_data['current']
+    config = config_data['configs'][current_config_name]
 
-    #TODO(kirr): dictionary instead turple
-    IndexerParams = namedtuple('IndexerParams',
-        ['lat_offset', 'long_offset',
-         'city_tl', 'city_br', 'get_reuest_url_func'])
+    # TODO(kirr): dictionary instead turple
+    IndexerParams = namedtuple(
+            'IndexerParams',
+            ['lat_offset',
+             'long_offset',
+             'city_tl',
+             'city_br',
+             'get_reuest_url_func'])
     p = IndexerParams(
-        lat_offset = config['lat_offset'],
-        long_offset = config['long_offset'],
-        city_tl = [config['area'][0], config['area'][1]],
-        city_br = [config['area'][2], config['area'][3]],
-        get_reuest_url_func = GetRouteRequestURL
-    );
+        lat_offset=config['lat_offset'],
+        long_offset=config['long_offset'],
+        city_tl=[config['area'][0], config['area'][1]],
+        city_br=[config['area'][2], config['area'][3]],
+        get_reuest_url_func=get_route_request_uRL
+    )
 
-    indexer.Init(p)
+    indexer.init(p)
+
 
 # TODO(kirr): if should be invoked once
-def GetRouteRequestURL(source_coords, target_coords):
+def get_route_request_uRL(source_coords, target_coords):
     template = ''
-    if routeMode == 'auto-test':
+    if route_mode == 'auto-test':
         template = 'http://route-net.int01e.tst.maps.yandex.ru/1.x/?rll={long1},{lat1}~{long2},{lat2}&mode=jams'
-    elif routeMode == 'masstransit-test':
+    elif route_mode == 'masstransit-test':
         template = 'http://masstransit-net.int01e.tst.maps.yandex.ru/1.x/?rll={long1},{lat1}~{long2},{lat2}&lang=ru_RU'
-    elif routeMode == 'auto':
+    elif route_mode == 'auto':
         template = 'http://route.maps.yandex.net/1.x/?rll={long1},{lat1}~{long2},{lat2}&mode=jams'
-    elif routeMode == 'masstransit':
+    elif route_mode == 'masstransit':
         template = 'http://masstransit.maps.yandex.net/1.x/?rll={long1},{lat1}~{long2},{lat2}&lang=ru_RU'
     else:
-        assert 'Unknown route mode {0}'.format(routeMode)
-    return template.format(long1=source_coords[1], lat1 = source_coords[0],
-                           long2 = target_coords[1], lat2 = target_coords[0])
+        assert 'Unknown route mode {0}'.format(route_mode)
+    return template.format(long1=source_coords[1], lat1=source_coords[0],
+                           long2=target_coords[1], lat2=target_coords[0])
+
 
 try:
     opts, args = getopt.getopt(sys.argv[1:], 'hm:c:sl:', ['help', 'mode=', 'config=', 'size', 'log='])
 except getopt.GetoptError:
-    PrintMan()
+    print_man()
     sys.exit(2)
 
 for opt, arg in opts:
     if opt in ('-h', '--help'):
-        PrintMan()
+        print_man()
         sys.exit()
     elif opt in ("-m", "--mode"):
-        routeMode = arg
+        route_mode = arg
     elif opt in ("-c", "--config"):
-        configPath = arg
+        config_path = arg
     elif opt in ("-l", "--log"):
         numeric_level = getattr(logging, arg.upper(), None)
         if not isinstance(numeric_level, int):
             raise ValueError('Invalid log level: %s' % loglevel)
         logging.basicConfig(level=numeric_level)
     elif opt in ("-s", "--size"):
-        LoadConfig()
+        load_config()
         print indexer.quads_count
         sys.exit()
 
 start_index = int(args[0])
 end_index = int(args[1])
 
-LoadConfig()
+load_config()
 for i in range(start_index, end_index):
-    routes, err = indexer.BuildRoutes(i)
+    routes, err = indexer.build_routes(i)
     if not routes:
         continue
 
-    routesModeDir = 'masstransit' if 'masstransit' in routeMode else 'auto'
-    outDir = os.path.join('routes', currentConfigName, routesModeDir)
+    routes_mode_dir = 'masstransit' if 'masstransit' in route_mode else 'auto'
+    out_dir = os.path.join('routes', current_config_name, routes_mode_dir)
     if err:
-        outDir = os.path.join(outDir, 'err')
+        out_dir = os.path.join(out_dir, 'err')
 
-    if not os.path.exists(outDir):
-        os.makedirs(outDir)
-    filePath = os.path.join(outDir, str(i) + '_route.bin')
-    logging.info('finsihed %s, %d routes', filePath, len(routes))
-    with open(filePath, 'wb') as f:
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+    file_path = os.path.join(out_dir, str(i) + '_route.bin')
+    logging.info('finsihed %s, %d routes', file_path, len(routes))
+    with open(file_path, 'wb') as f:
         for duration in routes:
             f.write(struct.pack('I', duration))
-        f.close();
+        f.close()

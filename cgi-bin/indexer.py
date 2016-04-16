@@ -6,23 +6,26 @@ import xml.etree.ElementTree as ET
 REQ_ERR_HTTP = 100000000
 REQ_ERR_RESPONSE = REQ_ERR_HTTP + 1
 
-def IsError(duration):
+
+def is_error(duration):
     return duration == REQ_ERR_HTTP or duration == REQ_ERR_RESPONSE
 
-def QuadCoordsById(quad_id):
+
+def quad_coords_by_id(quad_id):
     i = quad_id // long_count
     j = quad_id % long_count
     lat = city_br[0] + i*lat_offset + 0.5*lat_offset
     long = city_tl[1] + j*long_offset + 0.5*long_offset
     return [lat, long]
 
-def QuadIdByCoords(coords):
+
+def quad_id_by_coords(coords):
     lat_ind = (coords[0] - city_br[0]) // lat_offset
     long_ind = (coords[1] - city_tl[1]) // long_offset
     return long_ind + long_count*lat_ind
 
 
-def MoveForDirection(coords, direction):
+def move_for_direction(coords, direction):
     if direction == 0:
         return coords
 
@@ -34,39 +37,43 @@ def MoveForDirection(coords, direction):
         long_step = -long_step
     return [coords[0] + lat_step, coords[1] + long_step]
 
-def MakeDurationReuest(source_coords, target_coords, repeat_count=0, direction=0):
-    target_coords = MoveForDirection(target_coords, direction)
+
+def make_duration_request(source_coords, target_coords,
+                          repeat_count=0, direction=0):
+    target_coords = move_for_direction(target_coords, direction)
     req_str = get_reuest_url_func(source_coords, target_coords)
     req = urllib2.Request(req_str)
     try:
         response = urllib2.urlopen(req)
         # TODO(kirr): excessive copy
-        responseText = response.read()
-        xml_res = StringIO.StringIO(responseText)
+        response_text = response.read()
+        xml_res = StringIO.StringIO(response_text)
         for event, elem in ET.iterparse(xml_res, events=("start", "end")):
             # TODO(kirr): separate "jamsTime" and "time" by route type.
             if "jamsTime" in elem.tag or "time" in elem.tag:
                 logging.debug('%d->%d: ok %s',
-                    QuadIdByCoords(source_coords),
-                    QuadIdByCoords(target_coords),
-                    elem.text)
+                              quad_id_by_coords(source_coords),
+                              quad_id_by_coords(target_coords),
+                              elem.text)
                 return int(float(elem.text))
         # TODO(kirr): Check for directions
         if repeat_count < 5:
-            return MakeDurationReuest(source_coords, target_coords,
-                                      repeat_count + 1, direction + 1)
+            return make_duration_request(source_coords, target_coords,
+                                         repeat_count + 1, direction + 1)
         logging.warning('No duration info finded for %s', req_str)
         return REQ_ERR_RESPONSE
     except urllib2.HTTPError as e:
         if repeat_count < 3:
             logging.warning('HTTP error while getting %d->%d. %s: %d',
-                    QuadIdByCoords(source_coords),
-                    QuadIdByCoords(target_coords), req_str, e.code)
-            return MakeDurationReuest(source_coords, target_coords,
-                       repeat_count + 1, direction)
+                            quad_id_by_coords(source_coords),
+                            quad_id_by_coords(target_coords),
+                            req_str, e.code)
+            return make_duration_request(source_coords, target_coords,
+                                         repeat_count + 1, direction)
         return REQ_ERR_HTTP
 
-def Init(params):
+
+def init(params):
     global lat_offset
     global long_offset
     global city_tl
@@ -90,19 +97,20 @@ def Init(params):
 
     _is_init = True
 
-def BuildRoutes(quad_id):
+
+def build_routes(quad_id):
     assert _is_init
 
-    source_coords = QuadCoordsById(quad_id)
+    source_coords = quad_coords_by_id(quad_id)
     routes = []
     err = False
     for i in range(0, quads_count):
         if i == quad_id:
-            routes.append(1) # 1 second
+            routes.append(1)  # 1 second
             continue
 
-        target_coords = QuadCoordsById(i)
-        duration = MakeDurationReuest(source_coords, target_coords)
-        err = err | IsError(duration)
+        target_coords = quad_coords_by_id(i)
+        duration = make_duration_request(source_coords, target_coords)
+        err = err | is_error(duration)
         routes.append(duration)
     return routes, err
