@@ -135,39 +135,35 @@ function RequestRoutes(sourceId) {
   var req = new XMLHttpRequest();
   req.open("GET", routeFilePath, true);
   req.setRequestHeader('Cache-Control', 'no-cache');
-  req.responseType = "arraybuffer";
 
   req.onload = function (oEvent) {
     if (req.status != 200) {
       console.log(req.status + ': ' + req.statusText);
     } else {
-      var arrayBuffer = req.response; // Note: not req.responseText
-      if (arrayBuffer) {
-        var durations = new Uint32Array(arrayBuffer);
-        for (var d in districts) {
-          var district = districts[d];
-          var points_count = district.index.length;
-          var info = district.index.reduce(
-              function(pv, cv) {
-                var d = durations[cv];
-                if (d >= ROUTE_ERR_START)
-                  return pv;
-                pv.max = Math.max(pv.max, d);
-                pv.min = Math.min(pv.min, d);
-                pv.avg = pv.avg + d/points_count;
+      var durations = JSON.parse(req.responseText)
+      for (var d in districts) {
+        var district = districts[d];
+        var points_count = district.index.length;
+        var info = district.index.reduce(
+            function(pv, cv) {
+              var d = durations[cv];
+              if (d >= ROUTE_ERR_START)
                 return pv;
-              }, {min:ROUTE_ERR_START, max:0, avg:0});
-          console.log(d, info);
+              pv.max = Math.max(pv.max, d);
+              pv.min = Math.min(pv.min, d);
+              pv.avg = pv.avg + d/points_count;
+              return pv;
+            }, {min:ROUTE_ERR_START, max:0, avg:0});
+        console.log(d, info);
 
-          for (var i = 0; i < district.geometry.length; ++i) {
-            var poly = district.geometry[i];
-            poly.properties.set({
-                name:d,
-                duration_min:Math.floor(info.min/60),
-                duration_max:Math.floor(info.max/60)});
-            poly.options.set('fillColor', ColorForDuration(info.avg));
-            poly.options.set('hintContentLayout', DurationHintLayout);
-          }
+        for (var i = 0; i < district.geometry.length; ++i) {
+          var poly = district.geometry[i];
+          poly.properties.set({
+              name:d,
+              duration_min:Math.floor(info.min/60),
+              duration_max:Math.floor(info.max/60)});
+          poly.options.set('fillColor', ColorForDuration(info.avg));
+          poly.options.set('hintContentLayout', DurationHintLayout);
         }
       }
     }

@@ -101,7 +101,8 @@ def build_district_index(districts_file, outfile):
                     filter_control_points(control_points, path)
                 inner_indexes.extend(inner_points_part)
         logging.debug('%s: %d', district_name, len(inner_indexes))
-        assert len(inner_indexes) > 0, "%r is empty." % district_name
+        if not len(inner_indexes):
+            logging.error("%s is empty.", district_name)
         district['properties']['index'] = inner_indexes
     logging.debug('Points remaining:%d', len(control_points))
 

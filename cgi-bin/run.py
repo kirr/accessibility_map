@@ -15,6 +15,11 @@ route_mode = 'auto'
 current_config = None
 
 
+def make_dir_for_file(file_path):
+    out_dir = os.path.dirname(file_path)
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
 def print_man():
     print """run.py start_index end_index\n
     Options:\n
@@ -64,7 +69,7 @@ def get_route_request_url(source_coords, target_coords):
     elif route_mode == 'masstransit':
         template = 'http://masstransit.maps.yandex.net/1.x/?rll={long1},{lat1}~{long2},{lat2}&lang=ru_RU'
     else:
-        assert 'Unknown route mode {0}'.format(route_mode)
+        assert False, 'Unknown route mode {0}'.format(route_mode)
     return template.format(long1=source_coords[1], lat1=source_coords[0],
                            long2=target_coords[1], lat2=target_coords[0])
 
@@ -97,6 +102,7 @@ for opt, arg in opts:
     elif opt in ("--districts-index"):
         poly_viewer.init(parse_config())
         res_path = os.path.join('routes', current_config_name, 'ymaps.geojson')
+        make_dir_for_file(res_path)
         poly_viewer.build_district_index('./mo.geojson', res_path)
         sys.exit()
 
@@ -110,15 +116,9 @@ for i in range(start_index, end_index):
         continue
 
     routes_mode_dir = 'masstransit' if 'masstransit' in route_mode else 'auto'
-    out_dir = os.path.join('routes', current_config_name, routes_mode_dir)
-    if err:
-        out_dir = os.path.join(out_dir, 'err')
-
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-    file_path = os.path.join(out_dir, str(i) + '_route.bin')
+    file_path = os.path.join('routes', current_config_name,
+                             routes_mode_dir, str(i) + '_route.bin')
+    make_dir_for_file(file_path)
     logging.info('finsihed %s, %d routes', file_path, len(routes))
-    with open(file_path, 'wb') as f:
-        for duration in routes:
-            f.write(struct.pack('I', duration))
-        f.close()
+    with open(file_path, 'w') as json_output_file:
+        json.dump(routes, json_output_file)
