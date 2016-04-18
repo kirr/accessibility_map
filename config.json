@@ -1,15 +1,15 @@
 {
   "configs": {
     "moscow_test": {
-      "area": [55.916260, 37.320640, 55.566246, 37.914602],
+      "area": [55.916260, 37.29, 55.566246, 37.914602],
       "lat_offset": 0.04,
       "long_offset": 0.06
     },
     "moscow_medium": {
-      "area": [55.916260, 37.320640, 55.566246, 37.914602],
+      "area": [55.916260, 37.29, 55.566246, 37.914602],
       "lat_offset": 0.01,
       "long_offset": 0.015
     }
   },
-  "current": "moscow_medium"
+  "current": "moscow_test"
 }

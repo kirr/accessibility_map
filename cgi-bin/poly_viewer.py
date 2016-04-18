@@ -55,21 +55,20 @@ def clip_districts_to_map_bbox(data):
     ymaps_districts = []
     for district in data['features']:
         district_geom = district['geometry']
-        contains = True
         if district_geom['type'] == 'Polygon':
             verts = make_path_verts(merc_proj, district_geom['coordinates'])
-            path = mpath.Path(verts)
-            contains = \
-                (map_bbox.count_contains(path.vertices) == len(path.vertices))
+            if map_bbox.count_contains(verts) == len(verts):
+                ymaps_districts.append(district)
         elif district_geom['type'] == 'MultiPolygon':
+            contained_parts = []
             for poly_geom in district_geom['coordinates']:
                 verts = make_path_verts(merc_proj, poly_geom)
-                path = mpath.Path(verts)
-                if map_bbox.count_contains(path.vertices) != len(path.vertices):
-                    contains = False
-                    break
-        if contains:
-            ymaps_districts.append(district)
+                if map_bbox.count_contains(verts) == len(verts):
+                   contained_parts.append(poly_geom)
+            # FIXME(kirr): Hack for Kuncevo
+            if len(contained_parts):
+                ymaps_districts.append(district)
+                ymaps_districts[-1]['geometry']['coordinates'] = contained_parts
 
     data['features'] = ymaps_districts
     return data
@@ -83,6 +82,7 @@ def build_district_index(districts_file, outfile):
     clip_districts_to_map_bbox(json_data)
     control_points = get_control_points()
 
+    logging.debug('All points:%d', len(control_points))
     for district in json_data['features']:
         district_name = district['properties']['NAME']
         district_geom = district['geometry']
@@ -103,6 +103,7 @@ def build_district_index(districts_file, outfile):
         logging.debug('%s: %d', district_name, len(inner_indexes))
         assert len(inner_indexes) > 0, "%r is empty." % district_name
         district['properties']['index'] = inner_indexes
+    logging.debug('Points remaining:%d', len(control_points))
 
     with open(outfile, 'w') as json_output_file:
         json.dump(json_data, json_output_file)
