@@ -1,11 +1,14 @@
 import getopt
-import indexer
 import json
 import logging
 from collections import namedtuple
 import os
 import struct
 import sys
+
+import indexer
+import poly_viewer
+import quads
 
 config_path = './config.json'
 route_mode = 'auto'
@@ -15,13 +18,16 @@ current_config = None
 def print_man():
     print """run.py start_index end_index\n
     Options:\n
+    -h, --help prints this message\n
+    -m, --mode router mode ('auto', 'masstransit')\n
     -c, --config set config file \n
     -s, --size print quads count for current configuration\n
     -l, --log log level DEBUG, INFO, WARNING, ERROR\n
-    -h, --help prints this message"""
+    --districts-index build a district map to cofig points index\n
+    """
 
 
-def load_config():
+def parse_config():
     config_data = {}
     with open(config_path) as json_file:
         config_data = json.load(json_file)
@@ -38,19 +44,16 @@ def load_config():
              'city_tl',
              'city_br',
              'get_reuest_url_func'])
-    p = IndexerParams(
+    return IndexerParams(
         lat_offset=config['lat_offset'],
         long_offset=config['long_offset'],
         city_tl=[config['area'][0], config['area'][1]],
         city_br=[config['area'][2], config['area'][3]],
-        get_reuest_url_func=get_route_request_uRL
-    )
-
-    indexer.init(p)
+        get_reuest_url_func=get_route_request_url)
 
 
-# TODO(kirr): if should be invoked once
-def get_route_request_uRL(source_coords, target_coords):
+# TODO(kirr) : if should be invoked once
+def get_route_request_url(source_coords, target_coords):
     template = ''
     if route_mode == 'auto-test':
         template = 'http://route-net.int01e.tst.maps.yandex.ru/1.x/?rll={long1},{lat1}~{long2},{lat2}&mode=jams'
@@ -67,7 +70,10 @@ def get_route_request_uRL(source_coords, target_coords):
 
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], 'hm:c:sl:', ['help', 'mode=', 'config=', 'size', 'log='])
+    opts, args = getopt.getopt(
+            sys.argv[1:],
+            'hm:c:sl:',
+            ['help', 'mode=', 'config=', 'log=', 'size', 'districts-index'])
 except getopt.GetoptError:
     print_man()
     sys.exit(2)
@@ -86,14 +92,18 @@ for opt, arg in opts:
             raise ValueError('Invalid log level: %s' % loglevel)
         logging.basicConfig(level=numeric_level)
     elif opt in ("-s", "--size"):
-        load_config()
-        print indexer.quads_count
+        print quads.MapCoordsIndexer(params).quads_count
+        sys.exit()
+    elif opt in ("--districts-index"):
+        poly_viewer.init(parse_config())
+        res_path = os.path.join('routes', current_config_name, 'ymaps.geojson')
+        poly_viewer.build_district_index('./mo.geojson', res_path)
         sys.exit()
 
 start_index = int(args[0])
 end_index = int(args[1])
 
-load_config()
+indexer.init(parse_config())
 for i in range(start_index, end_index):
     routes, err = indexer.build_routes(i)
     if not routes:

@@ -12,22 +12,21 @@ var routingMode = 'auto'
 var myMap = null
 var sourcePoint = null;
 var routeTypeSelector = null;
+var districts = null
+var DurationHintLayout = null
 
 function LoadConfig(configData) {
   var config = configData.configs[configData.current];
 
-  LAT_OFFSET = config.lat_offset
-  LONG_OFFSET = config.long_offset
-
   CITY_TL = [config.area[0], config.area[1]]
   CITY_BR = [config.area[2], config.area[3]]
 
-  // TODO(kirr) max, min
-  LAT_COUNT = Math.floor((CITY_TL[0] - CITY_BR[0]) / LAT_OFFSET);
+  LAT_OFFSET = config.lat_offset
+  LONG_OFFSET = config.long_offset
   LONG_COUNT = Math.floor((CITY_BR[1] - CITY_TL[1]) / LONG_OFFSET);
-  QUADS_COUNT = LAT_COUNT * LONG_COUNT;
 
   FILE_DIR = 'routes/' + configData.current;
+  DISTRICTS_JSON = 'routes/' + configData.current + '/ymaps.geojson'
 }
 
 function InitUIBindings() {
@@ -40,23 +39,61 @@ function InitUIBindings() {
       OnChangeRoutingMode.bind(null, 'masstransit'));
 }
 
-function LoadJSON() {
+function LoadJSON(url, success) {
   var xhr = new XMLHttpRequest();
   xhr.onreadystatechange = function() {
     if (xhr.readyState === XMLHttpRequest.DONE) {
       if (xhr.status === 200) {
-        LoadConfig(JSON.parse(xhr.responseText));
-        InitUIBindings();
-        quads = new Array(LAT_COUNT*LONG_COUNT).fill(null);
-        UpdateAccessibilityMap();
+        success(xhr.responseText)
       } else {
         console.log('Error in json reuest:' + xhr.statusText);
       }
     }
   };
-  xhr.open("GET", 'config.json', true);
+  xhr.open("GET", url, true);
   xhr.setRequestHeader('Cache-Control', 'no-cache');
   xhr.send();
+}
+
+function AddPolygon(name, vertexes) {
+  var outer_coords = vertexes[0].map(
+      function(coords) { return [coords[1], coords[0]]; });
+  var inner_coords = []
+  if (vertexes[1]) {
+    inner_coords = vertexes[1].map(
+        function(coords) { return [coords[0], coords[1]]; });
+  }
+
+  var mapPoly = new ymaps.Polygon(
+    [outer_coords, inner_coords],
+    {hintContent: name},
+    {
+      fillColor: '#6699ff',
+      interactivityModel: 'default#transparent',
+      strokeWidth: 2,
+      opacity: 0.5
+    });
+
+  districts[name].geometry.push(mapPoly)
+  myMap.geoObjects.add(mapPoly);
+}
+
+function LoadDistricts(districts_json_text) {
+  json = JSON.parse(districts_json_text);
+  districts = {}
+  for (var i = 0; i < json.features.length; ++i) {
+    var district = json.features[i];
+    var districtName = district.properties.NAME;
+    districts[districtName] = {geometry:[], index:district.properties.index};
+    if (district.geometry.type == 'Polygon')
+      AddPolygon(districtName, district.geometry.coordinates);
+    else if (district.geometry.type == 'MultiPolygon') {
+      for (var j = 0; j < district.geometry.coordinates.length; ++j)
+        AddPolygon(districtName, district.geometry.coordinates[j]);
+    }
+  }
+  InitUIBindings();
+  UpdateAccessibilityMap();
 }
 
 function QuadCoordsById(id) {
@@ -106,9 +143,31 @@ function RequestRoutes(sourceId) {
     } else {
       var arrayBuffer = req.response; // Note: not req.responseText
       if (arrayBuffer) {
-        var byteArray = new Uint32Array(arrayBuffer);
-        for (var i = 0; i < byteArray.length; ++i) {
-          OnRequestComplete(i, byteArray[i]);
+        var durations = new Uint32Array(arrayBuffer);
+        for (var d in districts) {
+          var district = districts[d];
+          var points_count = district.index.length;
+          var info = district.index.reduce(
+              function(pv, cv) {
+                var d = durations[cv];
+                if (d >= ROUTE_ERR_START)
+                  return pv;
+                pv.max = Math.max(pv.max, d);
+                pv.min = Math.min(pv.min, d);
+                pv.avg = pv.avg + d/points_count;
+                return pv;
+              }, {min:ROUTE_ERR_START, max:0, avg:0});
+          console.log(d, info);
+
+          for (var i = 0; i < district.geometry.length; ++i) {
+            var poly = district.geometry[i];
+            poly.properties.set({
+                name:d,
+                duration_min:Math.floor(info.min/60),
+                duration_max:Math.floor(info.max/60)});
+            poly.options.set('fillColor', ColorForDuration(info.avg));
+            poly.options.set('hintContentLayout', DurationHintLayout);
+          }
         }
       }
     }
@@ -117,26 +176,6 @@ function RequestRoutes(sourceId) {
   req.send(null);
 }
 
-function OnRequestComplete(targetId, time) {
-  var targetCoords = QuadCoordsById(targetId);
-  var quad = quads[targetId];
-  if (quad) {
-    quad.options.set('fillColor', ColorForDuration(time));
-  } else {
-    quad = new ymaps.Rectangle(
-        [[targetCoords[0] - 0.5*LAT_OFFSET, targetCoords[1] - 0.5*LONG_OFFSET],
-         [targetCoords[0] + 0.5*LAT_OFFSET, targetCoords[1] + 0.5*LONG_OFFSET]],
-        {},
-        {
-          fillColor: ColorForDuration(time),
-          strokeWidth: 0,
-          openBalloonOnClick: false
-        });
-    quad.events.add('click', OnMapClick);
-    myMap.geoObjects.add(quad);
-    quads[targetId] = quad;
-  }
-}
 
 function OnMapClick(e) {
   sourceCoords = e.get('coords');
@@ -181,5 +220,10 @@ ymaps.ready(function () {
       sourceCoords, {}, {preset : 'islands#greenCircleDotIcon'});
   myMap.geoObjects.add(sourcePoint);
 
-  LoadJSON()
+  DurationHintLayout = ymaps.templateLayoutFactory.createClass(
+      '<p>{{properties.name}}.</p><p>Время поездки: {{properties.duration_min}} - {{properties.duration_max}} минут.</p>');
+  LoadJSON('config.json', function(responseText){
+      LoadConfig(JSON.parse(responseText));
+      LoadJSON(DISTRICTS_JSON, LoadDistricts)
+  })
 });
