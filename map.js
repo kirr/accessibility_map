@@ -1,8 +1,9 @@
-// TODO(kirr): Vanile constants
 GREEN = '2bb52b80'
-ORANGE = 'ffa50080'
-RED = 'ff240080'
-DARK_RED = '8b000080'
+DARK_GREEN = '0c590c80'
+ORANGE = 'ffa50090'
+DARK_ORANGE = 'fca611f0'
+RED = 'ff000080'
+DARK_RED = 'ec1e03f0'
 BLACK = '00000080'
 
 ROUTE_ERR_START = 100000000
@@ -118,8 +119,10 @@ function ColorForDuration(time) {
   if (d < 15)
     return GREEN;
   else if (d < 30)
-    return ORANGE;
+    return DARK_GREEN;
   else if (d < 45)
+    return ORANGE;
+  else if (d < 60)
     return RED;
   return DARK_RED;
 }
