@@ -74,7 +74,9 @@ def clip_districts_to_map_bbox(data):
     return data
 
 
-def build_district_index(districts_file, outfile):
+def build_district_index(districts_file,
+                         geojson_output,
+                         remaining_point_output):
     json_data = {}
     with open(districts_file) as json_file:
         json_data = json.load(json_file)
@@ -106,5 +108,9 @@ def build_district_index(districts_file, outfile):
         district['properties']['index'] = inner_indexes
     logging.debug('Points remaining:%d', len(control_points))
 
-    with open(outfile, 'w') as json_output_file:
+    with open(geojson_output, 'w') as json_output_file:
         json.dump(json_data, json_output_file)
+
+    remaining_indexes = [v[0] for v in control_points]
+    with open(remaining_point_output, 'w') as json_output_file:
+        json.dump(remaining_indexes, json_output_file)

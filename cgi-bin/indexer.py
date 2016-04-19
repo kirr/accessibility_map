@@ -7,6 +7,7 @@ import quads
 
 REQ_ERR_HTTP = 100000000
 REQ_ERR_RESPONSE = REQ_ERR_HTTP + 1
+REQ_ERR_SKIPPED = REQ_ERR_HTTP + 2
 
 
 def is_error(duration):
@@ -61,13 +62,15 @@ def make_duration_request(source_coords, target_coords,
         return REQ_ERR_HTTP
 
 
-def init(params):
+def init(params, excluded_points_list):
     global quad_indexer
     global get_reuest_url_func
+    global excluded_points
     global _is_init
 
     quad_indexer = quads.MapCoordsIndexer(params)
     get_reuest_url_func = params.get_reuest_url_func
+    excluded_points = set(excluded_points_list)
 
     _is_init = True
 
@@ -81,6 +84,9 @@ def build_routes(quad_id):
     for i in range(quad_indexer.quads_count):
         if i == quad_id:
             routes.append(1)  # 1 second
+            continue
+        if i in excluded_points:
+            routes.append(REQ_ERR_SKIPPED)
             continue
 
         target_coords = quad_indexer.quad_coords_by_id(i)

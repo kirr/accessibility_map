@@ -10,7 +10,11 @@ import indexer
 import poly_viewer
 import quads
 
+YMAPS_FILE_NAME = 'ymaps.geojson'
+REMAINING_POINTS_FILENAME = 'remaining_points.json'
+
 config_path = './config.json'
+source_geojson_path = './mo.geojson'
 route_mode = 'auto'
 current_config = None
 
@@ -30,6 +34,11 @@ def print_man():
     -l, --log log level DEBUG, INFO, WARNING, ERROR\n
     --districts-index build a district map to cofig points index\n
     """
+
+
+def get_out_dir():
+    assert not current_config_name is None
+    return os.path.join('routes', current_config_name)
 
 
 def parse_config():
@@ -101,23 +110,31 @@ for opt, arg in opts:
         sys.exit()
     elif opt in ("--districts-index"):
         poly_viewer.init(parse_config())
-        res_path = os.path.join('routes', current_config_name, 'ymaps.geojson')
+        res_path = os.path.join(get_out_dir(), YMAPS_FILE_NAME)
+        point_path = os.path.join(get_out_dir(), REMAINING_POINTS_FILENAME)
         make_dir_for_file(res_path)
-        poly_viewer.build_district_index('./mo.geojson', res_path)
+        poly_viewer.build_district_index(source_geojson_path,
+                                         res_path, point_path)
         sys.exit()
 
 start_index = int(args[0])
 end_index = int(args[1])
 
-indexer.init(parse_config())
+params = parse_config()
+excluded_points = []
+remaining_points_path = os.path.join(get_out_dir(), REMAINING_POINTS_FILENAME)
+with open(remaining_points_path) as json_file:
+    excluded_points = json.load(json_file)
+
+indexer.init(params, excluded_points)
 for i in range(start_index, end_index):
     routes, err = indexer.build_routes(i)
     if not routes:
         continue
 
     routes_mode_dir = 'masstransit' if 'masstransit' in route_mode else 'auto'
-    file_path = os.path.join('routes', current_config_name,
-                             routes_mode_dir, str(i) + '_route.bin')
+    file_path = os.path.join(get_out_dir(),
+                             routes_mode_dir, str(i) + '_time.json')
     make_dir_for_file(file_path)
     logging.info('finsihed %s, %d routes', file_path, len(routes))
     with open(file_path, 'w') as json_output_file:
