@@ -71,11 +71,11 @@ def parse_config():
 def get_route_request_url(source_coords, target_coords):
     template = ''
     if route_mode == 'auto-test':
-        template = 'http://route-net.int01e.tst.maps.yandex.ru/1.x/?rll={long1},{lat1}~{long2},{lat2}&mode=jams'
+        template = 'http://route-net.int01e.tst.maps.yandex.ru/1.x/?rll={long1},{lat1}~{long2},{lat2}&mode=jams&results=1'
     elif route_mode == 'masstransit-test':
         template = 'http://masstransit-net.int01e.tst.maps.yandex.ru/1.x/?rll={long1},{lat1}~{long2},{lat2}&lang=ru_RU'
     elif route_mode == 'auto':
-        template = 'http://route.maps.yandex.net/1.x/?rll={long1},{lat1}~{long2},{lat2}&mode=jams'
+        template = 'http://route.maps.yandex.net/1.x/?rll={long1},{lat1}~{long2},{lat2}&mode=jams&results=1'
     elif route_mode == 'masstransit':
         template = 'http://masstransit.maps.yandex.net/1.x/?rll={long1},{lat1}~{long2},{lat2}&lang=ru_RU'
     else:
