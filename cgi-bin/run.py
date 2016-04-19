@@ -17,6 +17,7 @@ config_path = './config.json'
 source_geojson_path = './mo.geojson'
 route_mode = 'auto'
 current_config = None
+exclude_remaining_points = False
 
 
 def make_dir_for_file(file_path):
@@ -87,7 +88,7 @@ try:
     opts, args = getopt.getopt(
             sys.argv[1:],
             'hm:c:sl:',
-            ['help', 'mode=', 'config=', 'log=', 'size', 'districts-index'])
+            ['help', 'mode=', 'exclude-remaining', 'config=', 'log=', 'size', 'districts-index'])
 except getopt.GetoptError:
     print_man()
     sys.exit(2)
@@ -100,6 +101,8 @@ for opt, arg in opts:
         route_mode = arg
     elif opt in ("-c", "--config"):
         config_path = arg
+    elif opt in ("--exclude-remaining"):
+        exclude_remaining_points = True
     elif opt in ("-l", "--log"):
         numeric_level = getattr(logging, arg.upper(), None)
         if not isinstance(numeric_level, int):
@@ -124,10 +127,13 @@ params = parse_config()
 excluded_points = []
 remaining_points_path = os.path.join(get_out_dir(), REMAINING_POINTS_FILENAME)
 with open(remaining_points_path) as json_file:
-    excluded_points = json.load(json_file)
+    excluded_points = set(json.load(json_file))
 
 indexer.init(params, excluded_points)
 for i in range(start_index, end_index):
+    if exclude_remaining_points and (i in excluded_points):
+        continue
+
     routes, err = indexer.build_routes(i)
     if not routes:
         continue

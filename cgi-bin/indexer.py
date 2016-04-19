@@ -62,7 +62,7 @@ def make_duration_request(source_coords, target_coords,
         return REQ_ERR_HTTP
 
 
-def init(params, excluded_points_list):
+def init(params, excluded_points_set):
     global quad_indexer
     global get_reuest_url_func
     global excluded_points
@@ -70,7 +70,7 @@ def init(params, excluded_points_list):
 
     quad_indexer = quads.MapCoordsIndexer(params)
     get_reuest_url_func = params.get_reuest_url_func
-    excluded_points = set(excluded_points_list)
+    excluded_points = excluded_points_set
 
     _is_init = True
 
