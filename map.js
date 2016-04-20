@@ -1,10 +1,4 @@
-GREEN = '2bb52b80'
-DARK_GREEN = '0c590c80'
-ORANGE = 'ffa50090'
-DARK_ORANGE = 'fca611f0'
-RED = 'ff000080'
-DARK_RED = 'ec1e03f0'
-BLACK = '00000080'
+MAP_COLORS = new Array(5)
 
 ROUTE_ERR_START = 100000000
 
@@ -15,6 +9,11 @@ var sourcePoint = null;
 var routeTypeSelector = null;
 var districts = null
 var DurationHintLayout = null
+
+function GetCSSBackgroundColor(elementId) {
+  var domElement = document.getElementById(elementId);
+  return window.getComputedStyle(domElement).getPropertyValue('background-color');
+}
 
 function LoadConfig(configData) {
   var config = configData.configs[configData.current];
@@ -117,14 +116,14 @@ function ColorForDuration(time) {
 
   var d = time / 60;
   if (d < 15)
-    return GREEN;
+    return MAP_COLORS[0];
   else if (d < 30)
-    return DARK_GREEN;
+    return MAP_COLORS[1];
   else if (d < 45)
-    return ORANGE;
+    return MAP_COLORS[2];
   else if (d < 60)
-    return RED;
-  return DARK_RED;
+    return MAP_COLORS[3];
+  return MAP_COLORS[4];
 }
 
 function UpdateAccessibilityMap() {
@@ -157,7 +156,6 @@ function RequestRoutes(sourceId) {
               pv.avg = pv.avg + d/points_count;
               return pv;
             }, {min:ROUTE_ERR_START, max:0, avg:0});
-        console.log(d, info);
 
         for (var i = 0; i < district.geometry.length; ++i) {
           var poly = district.geometry[i];
@@ -215,12 +213,15 @@ ymaps.ready(function () {
   });
   myMap.controls.add(routeTypeSelector)
 
+  for (var i = 0; i < MAP_COLORS.length; ++i)
+    MAP_COLORS[i] = GetCSSBackgroundColor('map-color' + (i+1))
+
   sourcePoint = new ymaps.Placemark(
       sourceCoords, {}, {preset : 'islands#greenCircleDotIcon'});
   myMap.geoObjects.add(sourcePoint);
 
   DurationHintLayout = ymaps.templateLayoutFactory.createClass(
-      '<p>{{properties.name}}.</p><p>Время поездки: {{properties.duration_min}} - {{properties.duration_max}} минут.</p>');
+      '<p><b>{{properties.name}}.</b></p><p>Время поездки: {{properties.duration_min}} - {{properties.duration_max}} минут.</p>');
   LoadJSON('config.json', function(responseText){
       LoadConfig(JSON.parse(responseText));
       LoadJSON(DISTRICTS_JSON, LoadDistricts)
