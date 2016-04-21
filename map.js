@@ -4,7 +4,7 @@ BLACK = 'c0c0c080'
 ROUTE_ERR_START = 100000000
 
 var sourceCoords = [55.733, 37.587];
-var routingMode = 'auto'
+var routingMode = 'masstransit'
 var myMap = null
 var sourcePoint = null;
 var routeTypeSelector = null;
@@ -33,8 +33,8 @@ function LoadConfig(configData) {
 function InitUIBindings() {
   myMap.events.add('click', OnMapClick);
 
-  var autoRouteItem = routeTypeSelector.get(0)
-  var masstransitRouteItem = routeTypeSelector.get(1)
+  var masstransitRouteItem = routeTypeSelector.get(0)
+  var autoRouteItem = routeTypeSelector.get(1)
   autoRouteItem.events.add('click', OnChangeRoutingMode.bind(null, 'auto'));
   masstransitRouteItem.events.add('click',
       OnChangeRoutingMode.bind(null, 'masstransit'));
@@ -208,8 +208,8 @@ ymaps.ready(function () {
       content: 'Тип маршрута:'
     },
     items: [
-      new ymaps.control.ListBoxItem('Автомобиль'),
-      new ymaps.control.ListBoxItem('Общественный транспорт')
+      new ymaps.control.ListBoxItem('Общественный транспорт'),
+      new ymaps.control.ListBoxItem('Автомобиль')
     ],
     options: {
       itemSelectOnClick: false
@@ -221,7 +221,12 @@ ymaps.ready(function () {
     MAP_COLORS[i] = GetCSSBackgroundColor('map-color' + (i+1))
 
   sourcePoint = new ymaps.Placemark(
-      sourceCoords, {}, {preset : 'islands#greenCircleDotIcon'});
+      sourceCoords,
+      {},
+      {iconLayout: 'default#image',
+       iconImageHref:'home.png',
+       iconImageSize:[60,70],
+       iconImageOffset:[-30, -45]});
   myMap.geoObjects.add(sourcePoint);
 
   DurationHintLayout = ymaps.templateLayoutFactory.createClass(
