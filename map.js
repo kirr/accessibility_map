@@ -1,5 +1,6 @@
 MAP_COLORS = new Array(5)
 
+BLACK = 'c0c0c080'
 ROUTE_ERR_START = 100000000
 
 var sourceCoords = [55.733, 37.587];
@@ -110,11 +111,11 @@ function QuadIdByCoords(coords) {
   return longInd + LONG_COUNT * latInd;
 }
 
-function ColorForDuration(time) {
-  if (!time || time >= ROUTE_ERR_START)
+function ColorForDuration(info) {
+  if (!info || !info.points_count)
     return BLACK;
 
-  var d = time / 60;
+  var d = info.sum / (info.points_count*60);
   if (d < 15)
     return MAP_COLORS[0];
   else if (d < 30)
@@ -145,17 +146,18 @@ function RequestRoutes(sourceId) {
       var durations = JSON.parse(req.responseText)
       for (var d in districts) {
         var district = districts[d];
-        var points_count = district.index.length;
         var info = district.index.reduce(
             function(pv, cv) {
               var d = durations[cv];
               if (d >= ROUTE_ERR_START)
                 return pv;
+
               pv.max = Math.max(pv.max, d);
               pv.min = Math.min(pv.min, d);
-              pv.avg = pv.avg + d/points_count;
+              pv.sum = pv.sum + d;
+              ++pv.points_count;
               return pv;
-            }, {min:ROUTE_ERR_START, max:0, avg:0});
+            }, {min:ROUTE_ERR_START, max:0, sum:0, points_count:0});
 
         for (var i = 0; i < district.geometry.length; ++i) {
           var poly = district.geometry[i];
@@ -163,7 +165,8 @@ function RequestRoutes(sourceId) {
               name:d,
               duration_min:Math.floor(info.min/60),
               duration_max:Math.floor(info.max/60)});
-          poly.options.set('fillColor', ColorForDuration(info.avg));
+          console.log(d, info);
+          poly.options.set('fillColor', ColorForDuration(info));
           poly.options.set('hintContentLayout', DurationHintLayout);
         }
       }
@@ -194,18 +197,19 @@ ymaps.ready(function () {
     center: sourceCoords,
     zoom: 11,
   }, {
-    searchControlResults: 1,
+    searchControlResults: 3,
     searchControlNoCentering: true,
     buttonMaxWidth: 150
+
   });
 
   routeTypeSelector = new ymaps.control.ListBox({
     data: {
-      content: 'Acessible by:'
+      content: 'Тип маршрута:'
     },
     items: [
-      new ymaps.control.ListBoxItem('Auto'),
-      new ymaps.control.ListBoxItem('Public transport')
+      new ymaps.control.ListBoxItem('Автомобиль'),
+      new ymaps.control.ListBoxItem('Общественный транспорт')
     ],
     options: {
       itemSelectOnClick: false
