@@ -226,6 +226,7 @@ ymaps.ready(function () {
       {iconLayout: 'default#image',
        iconImageHref:'home.png',
        iconImageSize:[60,70],
+       iconShape:{type:'Rectangle', coordinates:[[-15,-45], [15,0]]},
        iconImageOffset:[-30, -45]});
   myMap.geoObjects.add(sourcePoint);
 
