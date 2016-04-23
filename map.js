@@ -33,11 +33,13 @@ function LoadConfig(configData) {
 function InitUIBindings() {
   myMap.events.add('click', OnMapClick);
 
+  // TODO(kirr): work with lists right
   var masstransitRouteItem = routeTypeSelector.get(0)
   var autoRouteItem = routeTypeSelector.get(1)
-  autoRouteItem.events.add('click', OnChangeRoutingMode.bind(null, 'auto'));
+  autoRouteItem.events.add('click',
+      OnChangeRoutingMode.bind(null, 'auto', autoRouteItem));
   masstransitRouteItem.events.add('click',
-      OnChangeRoutingMode.bind(null, 'masstransit'));
+      OnChangeRoutingMode.bind(null, 'masstransit', masstransitRouteItem));
 }
 
 function LoadJSON(url, success) {
@@ -165,7 +167,6 @@ function RequestRoutes(sourceId) {
               name:d,
               duration_min:Math.floor(info.min/60),
               duration_max:Math.floor(info.max/60)});
-          console.log(d, info);
           poly.options.set('fillColor', ColorForDuration(info));
           poly.options.set('hintContentLayout', DurationHintLayout);
         }
@@ -184,11 +185,12 @@ function OnMapClick(e) {
 }
 
 
-function OnChangeRoutingMode(newRoutingMode) {
+function OnChangeRoutingMode(newRoutingMode, selectedItem) {
   if (newRoutingMode != routingMode) {
     routingMode = newRoutingMode;
     UpdateAccessibilityMap();
   }
+  routeTypeSelector.data.set('content', selectedItem.data.get('content'));
   routeTypeSelector.collapse();
 }
 
@@ -205,7 +207,7 @@ ymaps.ready(function () {
 
   routeTypeSelector = new ymaps.control.ListBox({
     data: {
-      content: 'Тип маршрута:'
+      content: 'Общественный транспорт'
     },
     items: [
       new ymaps.control.ListBoxItem('Общественный транспорт'),
